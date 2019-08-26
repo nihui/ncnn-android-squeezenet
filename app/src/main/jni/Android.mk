@@ -13,7 +13,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := squeezencnn
 LOCAL_SRC_FILES := squeezencnn_jni.cpp
 
-LOCAL_C_INCLUDES := $(NCNN_INSTALL_PATH)/include
+LOCAL_C_INCLUDES := $(NCNN_INSTALL_PATH)/include $(NCNN_INSTALL_PATH)/include/ncnn
 
 LOCAL_STATIC_LIBRARIES := ncnn
 
