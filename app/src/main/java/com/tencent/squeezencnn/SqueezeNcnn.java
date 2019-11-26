@@ -14,11 +14,12 @@
 
 package com.tencent.squeezencnn;
 
+import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 
 public class SqueezeNcnn
 {
-    public native boolean Init(byte[] param, byte[] bin, byte[] words);
+    public native boolean Init(AssetManager mgr);
 
     public native String Detect(Bitmap bitmap, boolean use_gpu);
 

@@ -27,8 +27,6 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
 
 public class MainActivity extends Activity
 {
@@ -47,13 +45,10 @@ public class MainActivity extends Activity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
 
-        try
+        boolean ret_init = squeezencnn.Init(getAssets());
+        if (!ret_init)
         {
-            initSqueezeNcnn();
-        }
-        catch (IOException e)
-        {
-            Log.e("MainActivity", "initSqueezeNcnn error");
+            Log.e("MainActivity", "squeezencnn Init failed");
         }
 
         infoResult = (TextView) findViewById(R.id.infoResult);
@@ -108,37 +103,6 @@ public class MainActivity extends Activity
                 }
             }
         });
-    }
-
-    private void initSqueezeNcnn() throws IOException
-    {
-        byte[] param = null;
-        byte[] bin = null;
-        byte[] words = null;
-
-        {
-            InputStream assetsInputStream = getAssets().open("squeezenet_v1.1.param.bin");
-            int available = assetsInputStream.available();
-            param = new byte[available];
-            int byteCode = assetsInputStream.read(param);
-            assetsInputStream.close();
-        }
-        {
-            InputStream assetsInputStream = getAssets().open("squeezenet_v1.1.bin");
-            int available = assetsInputStream.available();
-            bin = new byte[available];
-            int byteCode = assetsInputStream.read(bin);
-            assetsInputStream.close();
-        }
-        {
-            InputStream assetsInputStream = getAssets().open("synset_words.txt");
-            int available = assetsInputStream.available();
-            words = new byte[available];
-            int byteCode = assetsInputStream.read(words);
-            assetsInputStream.close();
-        }
-
-        squeezencnn.Init(param, bin, words);
     }
 
     @Override

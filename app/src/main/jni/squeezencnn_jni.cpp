@@ -12,6 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include <android/asset_manager_jni.h>
 #include <android/bitmap.h>
 #include <android/log.h>
 
@@ -22,34 +23,13 @@
 
 // ncnn
 #include "net.h"
+#include "benchmark.h"
 
 #include "squeezenet_v1.1.id.h"
-
-#include <sys/time.h>
-#include <unistd.h>
-
-static struct timeval tv_begin;
-static struct timeval tv_end;
-static double elasped;
-
-static void bench_start()
-{
-    gettimeofday(&tv_begin, NULL);
-}
-
-static void bench_end(const char* comment)
-{
-    gettimeofday(&tv_end, NULL);
-    elasped = ((tv_end.tv_sec - tv_begin.tv_sec) * 1000000.0f + tv_end.tv_usec - tv_begin.tv_usec) / 1000.0f;
-//     fprintf(stderr, "%.2fms   %s\n", elasped, comment);
-    __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "%.2fms   %s", elasped, comment);
-}
 
 static ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
 static ncnn::PoolAllocator g_workspace_pool_allocator;
 
-static ncnn::Mat squeezenet_param;
-static ncnn::Mat squeezenet_bin;
 static std::vector<std::string> squeezenet_words;
 static ncnn::Net squeezenet;
 
@@ -89,8 +69,8 @@ JNIEXPORT void JNI_OnUnload(JavaVM* vm, void* reserved)
     ncnn::destroy_gpu_instance();
 }
 
-// public native boolean Init(byte[] param, byte[] bin, byte[] words);
-JNIEXPORT jboolean JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Init(JNIEnv* env, jobject thiz, jbyteArray param, jbyteArray bin, jbyteArray words)
+// public native boolean Init(AssetManager mgr);
+JNIEXPORT jboolean JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Init(JNIEnv* env, jobject thiz, jobject assetManager)
 {
     ncnn::Option opt;
     opt.lightmode = true;
@@ -102,32 +82,53 @@ JNIEXPORT jboolean JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Init(JNIEnv*
     if (ncnn::get_gpu_count() != 0)
         opt.use_vulkan_compute = true;
 
+    AAssetManager* mgr = AAssetManager_fromJava(env, assetManager);
+
     squeezenet.opt = opt;
 
     // init param
     {
-        int len = env->GetArrayLength(param);
-        squeezenet_param.create(len, (size_t)1u);
-        env->GetByteArrayRegion(param, 0, len, (jbyte*)squeezenet_param);
-        int ret = squeezenet.load_param((const unsigned char*)squeezenet_param);
-        __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "load_param %d %d", ret, len);
+        int ret = squeezenet.load_param_bin(mgr, "squeezenet_v1.1.param.bin");
+        if (ret != 0)
+        {
+            __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "load_param_bin failed");
+            return JNI_FALSE;
+        }
     }
 
     // init bin
     {
-        int len = env->GetArrayLength(bin);
-        squeezenet_bin.create(len, (size_t)1u);
-        env->GetByteArrayRegion(bin, 0, len, (jbyte*)squeezenet_bin);
-        int ret = squeezenet.load_model((const unsigned char*)squeezenet_bin);
-        __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "load_model %d %d", ret, len);
+        int ret = squeezenet.load_model(mgr, "squeezenet_v1.1.bin");
+        if (ret != 0)
+        {
+            __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "load_model failed");
+            return JNI_FALSE;
+        }
     }
 
     // init words
     {
-        int len = env->GetArrayLength(words);
+        AAsset* asset = AAssetManager_open(mgr, "synset_words.txt", AASSET_MODE_BUFFER);
+        if (!asset)
+        {
+            __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "open synset_words.txt failed");
+            return JNI_FALSE;
+        }
+
+        int len = AAsset_getLength(asset);
+
         std::string words_buffer;
         words_buffer.resize(len);
-        env->GetByteArrayRegion(words, 0, len, (jbyte*)words_buffer.data());
+        int ret = AAsset_read(asset, (void*)words_buffer.data(), len);
+
+        AAsset_close(asset);
+
+        if (ret != len)
+        {
+            __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "read synset_words.txt failed");
+            return JNI_FALSE;
+        }
+
         squeezenet_words = split_string(words_buffer, "\n");
     }
 
@@ -142,27 +143,19 @@ JNIEXPORT jstring JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Detect(JNIEnv
         return env->NewStringUTF("no vulkan capable gpu");
     }
 
-    bench_start();
+    double start_time = ncnn::get_current_time();
+
+    AndroidBitmapInfo info;
+    AndroidBitmap_getInfo(env, bitmap, &info);
+    int width = info.width;
+    int height = info.height;
+    if (width != 227 || height != 227)
+        return NULL;
+    if (info.format != ANDROID_BITMAP_FORMAT_RGBA_8888)
+        return NULL;
 
     // ncnn from bitmap
-    ncnn::Mat in;
-    {
-        AndroidBitmapInfo info;
-        AndroidBitmap_getInfo(env, bitmap, &info);
-        int width = info.width;
-        int height = info.height;
-        if (width != 227 || height != 227)
-            return NULL;
-        if (info.format != ANDROID_BITMAP_FORMAT_RGBA_8888)
-            return NULL;
-
-        void* indata;
-        AndroidBitmap_lockPixels(env, bitmap, &indata);
-
-        in = ncnn::Mat::from_pixels((const unsigned char*)indata, ncnn::Mat::PIXEL_RGBA2BGR, width, height);
-
-        AndroidBitmap_unlockPixels(env, bitmap);
-    }
+    ncnn::Mat in = ncnn::Mat::from_android_bitmap(env, bitmap, ncnn::Mat::PIXEL_BGR);
 
     // squeezenet
     std::vector<float> cls_scores;
@@ -208,7 +201,8 @@ JNIEXPORT jstring JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Detect(JNIEnv
     // +10 to skip leading n03179701
     jstring result = env->NewStringUTF(result_str.c_str());
 
-    bench_end("detect");
+    double elasped = ncnn::get_current_time() - start_time;
+    __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "%.2fms   detect", elasped);
 
     return result;
 }

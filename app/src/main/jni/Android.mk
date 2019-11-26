@@ -25,6 +25,6 @@ LOCAL_CFLAGS += -fopenmp
 LOCAL_CPPFLAGS += -fopenmp
 LOCAL_LDFLAGS += -fopenmp
 
-LOCAL_LDLIBS := -lz -llog -ljnigraphics -lvulkan
+LOCAL_LDLIBS := -lz -llog -ljnigraphics -lvulkan -landroid
 
 include $(BUILD_SHARED_LIBRARY)
