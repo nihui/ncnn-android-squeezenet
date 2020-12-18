@@ -6,6 +6,7 @@ android {
 
     defaultConfig {
         applicationId "com.tencent.squeezencnn"
+        archivesBaseName = "$applicationId"
 
         ndk {
             moduleName "ncnn"
@@ -14,12 +15,6 @@ android {
         minSdkVersion 24
     }
 
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
-        }
-    }
     externalNativeBuild {
         ndkBuild {
             path file('src/main/jni/Android.mk')
