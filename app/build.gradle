@@ -8,16 +8,13 @@ android {
         applicationId "com.tencent.squeezencnn"
         archivesBaseName = "$applicationId"
 
-        ndk {
-            moduleName "ncnn"
-            abiFilters "armeabi-v7a", "arm64-v8a"
-        }
         minSdkVersion 24
     }
 
     externalNativeBuild {
-        ndkBuild {
-            path file('src/main/jni/Android.mk')
+        cmake {
+            version "3.10.2"
+            path file('src/main/jni/CMakeLists.txt')
         }
     }
 }
