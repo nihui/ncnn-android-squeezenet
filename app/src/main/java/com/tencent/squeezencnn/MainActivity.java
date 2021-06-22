@@ -164,5 +164,13 @@ public class MainActivity extends Activity
         o2.inSampleSize = scale;
         return BitmapFactory.decodeStream(getContentResolver().openInputStream(selectedImage), null, o2);
     }
-
+    @Override
+    public void onResume()
+    {
+        super.onResume();
+        if (this.checkSelfPermission(  Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_DENIED)
+        {
+            this.requestPermissions( new String[] {Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
+        }        
+    }
 }
