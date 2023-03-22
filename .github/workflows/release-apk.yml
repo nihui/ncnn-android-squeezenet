@@ -40,10 +40,9 @@ jobs:
 
     - name: sign-apk
       run: |
-        find app/build/outputs/apk/release -type f
-        find app/build/outputs/apk/release -type f | grep "-release-unsigned.apk"
-        find app/build/outputs/apk/release -type f | grep "-release-unsigned.apk" | head -n 1
-        UNSIGNED_APK=`find app/build/outputs/apk/release -type f | grep "-release-unsigned.apk" | head -n 1`
+        find app/build/outputs/apk/release -type f -name "*-release-unsigned.apk"
+        find app/build/outputs/apk/release -type f -name "*-release-unsigned.apk" | head -n 1
+        UNSIGNED_APK=`find app/build/outputs/apk/release -type f -name "*-release-unsigned.apk" | head -n 1`
         ALIGNED_APK=${UNSIGNED_APK//-release-unsigned.apk/-release-unsigned-aligned.apk}
         SIGNED_APK=${UNSIGNED_APK//-release-unsigned.apk/-release.apk}
         echo ${UNSIGNED_APK}
@@ -54,7 +53,8 @@ jobs:
             -keystore ncnn.keystore -storepass 7767517 -keypass 7767517 \
             -keyalg RSA -keysize 2048 -validity 10000
         ${ANDROID_HOME}/build-tools/29.0.2/zipalign -f -v 4 ${UNSIGNED_APK} ${SIGNED_APK}
-        ${ANDROID_HOME}/build-tools/29.0.2/apksigner sign --ks ncnn.keystore --ks-key-alias ncnn --ks-pass pass:7767517 --key-pass pass:7767517 --out ${SIGNED_APK} ${SIGNED_APK}
+        ${ANDROID_HOME}/build-tools/29.0.2/apksigner sign --ks ncnn.keystore --ks-key-alias ncnn \
+            --ks-pass pass:7767517 --key-pass pass:7767517 --out ${SIGNED_APK} ${SIGNED_APK}
         ${ANDROID_HOME}/build-tools/29.0.2/apksigner verify ${SIGNED_APK}
 
     # - name: create-release
