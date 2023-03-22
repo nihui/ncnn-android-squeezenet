@@ -1,8 +1,9 @@
 name: release-apk
-on:
-  push:
-    tags:
-      - '*'
+on: [push]
+# on:
+  # push:
+    # tags:
+      # - '*'
 
 env:
   NCNN_VERSION: 20230223
@@ -32,12 +33,12 @@ jobs:
         cat app/src/main/jni/CMakeLists.txt
 
     - name: build-apk
-      run: bash ./gradlew debug
+      run: bash ./gradlew assembleDebug --stacktrace
 
-    - name: create-release
-      uses: softprops/action-gh-release@v1
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        tag_name: ${{ github.ref_name }}
-        name: Release ${{ github.ref_name }}
-        files: app/build/outputs/apk/debug/app-debug.apk
+    # - name: create-release
+    #   uses: softprops/action-gh-release@v1
+    #   with:
+    #     token: ${{ secrets.GITHUB_TOKEN }}
+    #     tag_name: ${{ github.ref_name }}
+    #     name: Release ${{ github.ref_name }}
+    #     files: app/build/outputs/apk/debug/app-debug.apk
