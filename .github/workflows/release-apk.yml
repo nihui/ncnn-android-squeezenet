@@ -36,7 +36,20 @@ jobs:
       # run: bash ./gradlew assembleDebug --stacktrace
       run: |
         bash ./gradlew assembleRelease --stacktrace
-        find app/build/outputs/apk
+        find app/build/outputs/apk/release
+
+    - name: sign-apk
+      run: |
+        UNSIGNED_APK=`find app/build/outputs/apk/release -type f | grep -release-unsigned.apk | head -n 1`
+        ALIGNED_APK=${UNSIGNED_APK//-release-unsigned.apk/-release-unsigned-aligned.apk}
+        SIGNED_APK=${UNSIGNED_APK//-release-unsigned.apk/-release.apk}
+        echo ${UNSIGNED_APK}
+        echo ${ALIGNED_APK}
+        echo ${SIGNED_APK}
+        keytool -genkey -noprompt -alias ncnn -keystore ncnn.keystore -storepass 7767517 -keypass 7767517 -keyalg RSA -keysize 2048 -validity 10000
+        zipalign -f -v 4 ${UNSIGNED_APK} ${SIGNED_APK}
+        apksigner sign --ks ncnn.keystore --ks-key-alias ncnn --ks-pass pass:7767517 --key-pass pass:7767517 --out ${SIGNED_APK} ${SIGNED_APK}
+        apksigner verify ${SIGNED_APK}
 
     # - name: create-release
     #   uses: softprops/action-gh-release@v1
@@ -44,4 +57,4 @@ jobs:
     #     token: ${{ secrets.GITHUB_TOKEN }}
     #     tag_name: ${{ github.ref_name }}
     #     name: Release ${{ github.ref_name }}
-    #     files: app/build/outputs/apk/debug/app-debug.apk
+    #     files: ${{ steps.signapk.outputs.signedReleaseFile }}
