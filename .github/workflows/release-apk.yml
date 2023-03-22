@@ -18,12 +18,12 @@ jobs:
 
     - name: ncnn
       run: |
-        wget https://github.com/Tencent/ncnn/releases/download/${NCNN_VERSION}/ncnn-${NCNN_VERSION}-android-vulkan.zip
+        wget -q https://github.com/Tencent/ncnn/releases/download/${NCNN_VERSION}/ncnn-${NCNN_VERSION}-android-vulkan.zip
         unzip -q ncnn-${NCNN_VERSION}-android-vulkan.zip -d app/src/main/jni
 
     - name: opencv-mobile
       run: |
-        wget https://github.com/nihui/opencv-mobile/releases/download/${OPENCV_MOBILE_TAG}/opencv-mobile-${OPENCV_VERSION}-android.zip
+        wget -q https://github.com/nihui/opencv-mobile/releases/download/${OPENCV_MOBILE_TAG}/opencv-mobile-${OPENCV_VERSION}-android.zip
         unzip -q opencv-mobile-${OPENCV_VERSION}-android.zip -d app/src/main/jni
 
     - name: modify-jni-cmakelists
