@@ -30,24 +30,17 @@ jobs:
       run: |
         sed -i "s@ncnn-[^-]*-android-vulkan@ncnn-${NCNN_VERSION}-android-vulkan@g" app/src/main/jni/CMakeLists.txt
         sed -i "s@opencv-mobile-[^-]*-android@opencv-mobile-${OPENCV_VERSION}-android@g" app/src/main/jni/CMakeLists.txt
-        cat app/src/main/jni/CMakeLists.txt
 
     - name: build-apk
-      # run: bash ./gradlew assembleDebug --stacktrace
       run: |
         bash ./gradlew assembleRelease --stacktrace
-        find app/build/outputs/apk/release
 
     - name: sign-apk
+      id: signapk
       run: |
-        find app/build/outputs/apk/release -type f -name "*-release-unsigned.apk"
-        find app/build/outputs/apk/release -type f -name "*-release-unsigned.apk" | head -n 1
         UNSIGNED_APK=`find app/build/outputs/apk/release -type f -name "*-release-unsigned.apk" | head -n 1`
         ALIGNED_APK=${UNSIGNED_APK//-release-unsigned.apk/-release-unsigned-aligned.apk}
         SIGNED_APK=${UNSIGNED_APK//-release-unsigned.apk/-release.apk}
-        echo ${UNSIGNED_APK}
-        echo ${ALIGNED_APK}
-        echo ${SIGNED_APK}
         keytool -genkey -noprompt -alias ncnn \
             -dname "CN=mqttserver.ibm.com, OU=ID, O=IBM, L=Hursley, S=Hants, C=GB"\
             -keystore ncnn.keystore -storepass 7767517 -keypass 7767517 \
@@ -56,11 +49,12 @@ jobs:
         ${ANDROID_HOME}/build-tools/29.0.2/apksigner sign --ks ncnn.keystore --ks-key-alias ncnn \
             --ks-pass pass:7767517 --key-pass pass:7767517 --out ${SIGNED_APK} ${SIGNED_APK}
         ${ANDROID_HOME}/build-tools/29.0.2/apksigner verify ${SIGNED_APK}
+        echo "SIGNED_APK=${SIGNED_APK}" >> $GITHUB_OUTPUT
 
-    # - name: create-release
-    #   uses: softprops/action-gh-release@v1
-    #   with:
-    #     token: ${{ secrets.GITHUB_TOKEN }}
-    #     tag_name: ${{ github.ref_name }}
-    #     name: Release ${{ github.ref_name }}
-    #     files: ${{ steps.signapk.outputs.signedReleaseFile }}
+    - name: create-release
+      uses: softprops/action-gh-release@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        tag_name: ${{ github.ref_name }}
+        name: Release ${{ github.ref_name }}
+        files: ${{ steps.signapk.outputs.SIGNED_APK }}
