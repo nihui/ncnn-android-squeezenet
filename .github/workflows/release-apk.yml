@@ -27,8 +27,8 @@ jobs:
 
     - name: modify-jni-cmakelists
       run: |
-        sed -i 's@ncnn-[^-]*-android-vulkan@ncnn-${NCNN_VERSION}-android-vulkan@g' app/src/main/jni/CMakeLists.txt
-        sed -i 's@opencv-mobile-[^-]*-android@opencv-mobile-${OPENCV_VERSION}-android@g' app/src/main/jni/CMakeLists.txt
+        sed -i "s@ncnn-[^-]*-android-vulkan@ncnn-${NCNN_VERSION}-android-vulkan@g" app/src/main/jni/CMakeLists.txt
+        sed -i "s@opencv-mobile-[^-]*-android@opencv-mobile-${OPENCV_VERSION}-android@g" app/src/main/jni/CMakeLists.txt
         cat app/src/main/jni/CMakeLists.txt
 
     - name: build-apk
