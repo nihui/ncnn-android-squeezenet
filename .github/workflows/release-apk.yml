@@ -34,7 +34,9 @@ jobs:
 
     - name: build-apk
       # run: bash ./gradlew assembleDebug --stacktrace
-      run: bash ./gradlew assembleRelease --stacktrace
+      run: |
+        bash ./gradlew assembleRelease --stacktrace
+        find app/build/outputs/apk
 
     # - name: create-release
     #   uses: softprops/action-gh-release@v1
