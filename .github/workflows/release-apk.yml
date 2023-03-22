@@ -33,7 +33,8 @@ jobs:
         cat app/src/main/jni/CMakeLists.txt
 
     - name: build-apk
-      run: bash ./gradlew assembleDebug --stacktrace
+      # run: bash ./gradlew assembleDebug --stacktrace
+      run: bash ./gradlew assembleRelease --stacktrace
 
     # - name: create-release
     #   uses: softprops/action-gh-release@v1

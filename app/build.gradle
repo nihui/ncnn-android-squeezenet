@@ -17,4 +17,10 @@ android {
             path file('src/main/jni/CMakeLists.txt')
         }
     }
+
+    buildTypes {
+        release {
+            signingConfig null
+        }
+    }
 }
