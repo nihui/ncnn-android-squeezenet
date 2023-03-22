@@ -1,0 +1,43 @@
+name: release-apk
+on:
+  push:
+    tags:
+      - '*'
+
+env:
+  NCNN_VERSION: 20230223
+  OPENCV_VERSION: 4.6.0
+  OPENCV_MOBILE_TAG: v16
+
+jobs:
+  release-apk:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: ncnn
+      run: |
+        wget https://github.com/Tencent/ncnn/releases/download/${NCNN_VERSION}/ncnn-${NCNN_VERSION}-android-vulkan.zip
+        unzip -q ncnn-${NCNN_VERSION}-android-vulkan.zip -d app/src/main/jni
+
+    - name: opencv-mobile
+      run: |
+        wget https://github.com/nihui/opencv-mobile/releases/download/${OPENCV_MOBILE_TAG}/opencv-mobile-${OPENCV_VERSION}-android.zip
+        unzip -q opencv-mobile-${OPENCV_VERSION}-android.zip -d app/src/main/jni
+
+    - name: modify-jni-cmakelists
+      run: |
+        sed -i 's@ncnn-[^-]*-android-vulkan@ncnn-${NCNN_VERSION}-android-vulkan@g' app/src/main/jni/CMakeLists.txt
+        sed -i 's@opencv-mobile-[^-]*-android@opencv-mobile-${OPENCV_VERSION}-android@g' app/src/main/jni/CMakeLists.txt
+        cat app/src/main/jni/CMakeLists.txt
+
+    - name: build-apk
+      run: bash ./gradlew debug
+
+    - name: create-release
+      uses: softprops/action-gh-release@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        tag_name: ${{ github.ref_name }}
+        name: Release ${{ github.ref_name }}
+        files: app/build/outputs/apk/debug/app-debug.apk
