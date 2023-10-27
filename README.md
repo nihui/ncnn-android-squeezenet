@@ -6,6 +6,10 @@ this is a sample ncnn android project, it depends on ncnn library only
 
 https://github.com/Tencent/ncnn
 
+## apk download
+
+https://github.com/nihui/ncnn-android-squeezenet/releases
+
 ## how to build and run
 ### step1
 https://github.com/Tencent/ncnn/releases
