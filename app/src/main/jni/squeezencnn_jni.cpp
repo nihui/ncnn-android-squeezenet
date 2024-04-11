@@ -72,21 +72,9 @@ JNIEXPORT jboolean JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Init(JNIEnv*
 {
     AAssetManager* mgr = AAssetManager_fromJava(env, assetManager);
 
-    // use vulkan compute
-    if (ncnn::get_gpu_count() != 0)
-        squeezenet_gpu.opt.use_vulkan_compute = true;
-
     // init param
     {
         int ret = squeezenet.load_param_bin(mgr, "squeezenet_v1.1.param.bin");
-        if (ret != 0)
-        {
-            __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "load_param_bin failed");
-            return JNI_FALSE;
-        }
-    }
-    {
-        int ret = squeezenet_gpu.load_param_bin(mgr, "squeezenet_v1.1.param.bin");
         if (ret != 0)
         {
             __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "load_param_bin failed");
@@ -103,12 +91,27 @@ JNIEXPORT jboolean JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Init(JNIEnv*
             return JNI_FALSE;
         }
     }
+
+    // use vulkan compute
+    if (ncnn::get_gpu_count() != 0)
     {
-        int ret = squeezenet_gpu.load_model(mgr, "squeezenet_v1.1.bin");
-        if (ret != 0)
+        squeezenet_gpu.opt.use_vulkan_compute = true;
+
         {
-            __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "load_model failed");
-            return JNI_FALSE;
+            int ret = squeezenet_gpu.load_param_bin(mgr, "squeezenet_v1.1.param.bin");
+            if (ret != 0)
+            {
+                __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "load_param_bin failed");
+                return JNI_FALSE;
+            }
+        }
+        {
+            int ret = squeezenet_gpu.load_model(mgr, "squeezenet_v1.1.bin");
+            if (ret != 0)
+            {
+                __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "load_model failed");
+                return JNI_FALSE;
+            }
         }
     }
 
