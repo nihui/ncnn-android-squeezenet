@@ -1,14 +1,16 @@
-apply plugin: 'com.android.application'
+plugins {
+    id 'com.android.application'
+}
 
 android {
-    compileSdkVersion 24
-    buildToolsVersion "29.0.2"
+    namespace 'com.tencent.squeezencnn'
+    compileSdk 33
 
     defaultConfig {
         applicationId "com.tencent.squeezencnn"
         archivesBaseName = "$applicationId"
 
-        minSdkVersion 24
+        minSdk 21
     }
 
     externalNativeBuild {

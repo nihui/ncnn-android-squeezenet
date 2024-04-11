@@ -27,11 +27,9 @@
 
 #include "squeezenet_v1.1.id.h"
 
-static ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
-static ncnn::PoolAllocator g_workspace_pool_allocator;
-
 static std::vector<std::string> squeezenet_words;
 static ncnn::Net squeezenet;
+static ncnn::Net squeezenet_gpu;
 
 static std::vector<std::string> split_string(const std::string& str, const std::string& delimiter)
 {
@@ -72,19 +70,11 @@ JNIEXPORT void JNI_OnUnload(JavaVM* vm, void* reserved)
 // public native boolean Init(AssetManager mgr);
 JNIEXPORT jboolean JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Init(JNIEnv* env, jobject thiz, jobject assetManager)
 {
-    ncnn::Option opt;
-    opt.lightmode = true;
-    opt.num_threads = 4;
-    opt.blob_allocator = &g_blob_pool_allocator;
-    opt.workspace_allocator = &g_workspace_pool_allocator;
+    AAssetManager* mgr = AAssetManager_fromJava(env, assetManager);
 
     // use vulkan compute
     if (ncnn::get_gpu_count() != 0)
-        opt.use_vulkan_compute = true;
-
-    AAssetManager* mgr = AAssetManager_fromJava(env, assetManager);
-
-    squeezenet.opt = opt;
+        squeezenet_gpu.opt.use_vulkan_compute = true;
 
     // init param
     {
@@ -95,10 +85,26 @@ JNIEXPORT jboolean JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Init(JNIEnv*
             return JNI_FALSE;
         }
     }
+    {
+        int ret = squeezenet_gpu.load_param_bin(mgr, "squeezenet_v1.1.param.bin");
+        if (ret != 0)
+        {
+            __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "load_param_bin failed");
+            return JNI_FALSE;
+        }
+    }
 
     // init bin
     {
         int ret = squeezenet.load_model(mgr, "squeezenet_v1.1.bin");
+        if (ret != 0)
+        {
+            __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "load_model failed");
+            return JNI_FALSE;
+        }
+    }
+    {
+        int ret = squeezenet_gpu.load_model(mgr, "squeezenet_v1.1.bin");
         if (ret != 0)
         {
             __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "load_model failed");
@@ -163,9 +169,7 @@ JNIEXPORT jstring JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Detect(JNIEnv
         const float mean_vals[3] = {104.f, 117.f, 123.f};
         in.substract_mean_normalize(mean_vals, 0);
 
-        ncnn::Extractor ex = squeezenet.create_extractor();
-
-        ex.set_vulkan_compute(use_gpu);
+        ncnn::Extractor ex = use_gpu ? squeezenet_gpu.create_extractor() : squeezenet.create_extractor();
 
         ex.input(squeezenet_v1_1_param_id::BLOB_data, in);
 
