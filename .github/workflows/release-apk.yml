@@ -6,7 +6,7 @@ on: [push]
       # - '*'
 
 env:
-  NCNN_VERSION: 20240410
+  NCNN_VERSION: 20241226
   BUILD_TOOLS_VERSION: 33.0.0
 
 jobs:
