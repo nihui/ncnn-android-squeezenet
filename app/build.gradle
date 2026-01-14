@@ -5,12 +5,14 @@ plugins {
 android {
     namespace 'com.tencent.squeezencnn'
     compileSdk 33
+    ndkVersion "29.0.14206865"
 
     defaultConfig {
         applicationId "com.tencent.squeezencnn"
         archivesBaseName = "$applicationId"
 
-        minSdk 21
+        minSdkVersion 24
+        targetSdkVersion 35
 
         externalNativeBuild {
             cmake {
