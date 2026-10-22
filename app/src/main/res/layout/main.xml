@@ -27,6 +27,13 @@
         android:text="识别-gpu" />
     </LinearLayout>
 
+    <Spinner
+        android:id="@+id/spinnerGPU"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:drawSelectorOnTop="true"
+        android:entries="@array/gpu_array" />
+
     <TextView
         android:id="@+id/infoResult"
         android:layout_width="fill_parent"

@@ -22,6 +22,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.Spinner;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -53,6 +55,23 @@ public class MainActivity extends Activity
 
         infoResult = (TextView) findViewById(R.id.infoResult);
         imageView = (ImageView) findViewById(R.id.imageView);
+
+        Spinner spinnerGPU = (Spinner) findViewById(R.id.spinnerGPU);
+        spinnerGPU.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
+                boolean ret = squeezencnn.InitGPU(getAssets(), pos);
+                Button buttonDetectGPU = (Button) findViewById(R.id.buttonDetectGPU);
+                buttonDetectGPU.setEnabled(ret);
+                if (!ret)
+                {
+                    Log.e("MainActivity", "squeezencnn InitGPU failed");
+                }
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
 
         Button buttonImage = (Button) findViewById(R.id.buttonImage);
         buttonImage.setOnClickListener(new View.OnClickListener() {

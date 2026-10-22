@@ -18,6 +18,7 @@
 
 #include <jni.h>
 
+#include <string.h>
 #include <string>
 #include <vector>
 
@@ -29,7 +30,8 @@
 
 static std::vector<std::string> squeezenet_words;
 static ncnn::Net squeezenet;
-static ncnn::Net squeezenet_gpu;
+static ncnn::Net* squeezenet_gpu = 0;
+static ncnn::Mutex lock;
 
 static std::vector<std::string> split_string(const std::string& str, const std::string& delimiter)
 {
@@ -55,8 +57,6 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 {
     __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "JNI_OnLoad");
 
-    ncnn::create_gpu_instance();
-
     return JNI_VERSION_1_4;
 }
 
@@ -64,12 +64,18 @@ JNIEXPORT void JNI_OnUnload(JavaVM* vm, void* reserved)
 {
     __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "JNI_OnUnload");
 
+    ncnn::MutexLockGuard g(lock);
+
+    delete squeezenet_gpu;
+    squeezenet_gpu = 0;
     ncnn::destroy_gpu_instance();
 }
 
 // public native boolean Init(AssetManager mgr);
 JNIEXPORT jboolean JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Init(JNIEnv* env, jobject thiz, jobject assetManager)
 {
+    ncnn::MutexLockGuard g(lock);
+
     AAssetManager* mgr = AAssetManager_fromJava(env, assetManager);
 
     // init param
@@ -89,29 +95,6 @@ JNIEXPORT jboolean JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Init(JNIEnv*
         {
             __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "load_model failed");
             return JNI_FALSE;
-        }
-    }
-
-    // use vulkan compute
-    if (ncnn::get_gpu_count() != 0)
-    {
-        squeezenet_gpu.opt.use_vulkan_compute = true;
-
-        {
-            int ret = squeezenet_gpu.load_param_bin(mgr, "squeezenet_v1.1.param.bin");
-            if (ret != 0)
-            {
-                __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "load_param_bin failed");
-                return JNI_FALSE;
-            }
-        }
-        {
-            int ret = squeezenet_gpu.load_model(mgr, "squeezenet_v1.1.bin");
-            if (ret != 0)
-            {
-                __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "load_model failed");
-                return JNI_FALSE;
-            }
         }
     }
 
@@ -144,10 +127,105 @@ JNIEXPORT jboolean JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Init(JNIEnv*
     return JNI_TRUE;
 }
 
+// public native boolean InitGPU(AssetManager mgr, int driver);
+JNIEXPORT jboolean JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_InitGPU(JNIEnv* env, jobject thiz, jobject assetManager, jint driver)
+{
+    if (driver < 0 || driver > 2)
+        return JNI_FALSE;
+
+    ncnn::MutexLockGuard g(lock);
+
+    static int old_driver = -1;
+    if (driver == old_driver)
+        return JNI_TRUE;
+
+    // The old Net must be destroyed before switching drivers.
+    delete squeezenet_gpu;
+    squeezenet_gpu = 0;
+    ncnn::destroy_gpu_instance();
+    old_driver = -1;
+
+    if (driver == 2)
+    {
+        if (ncnn::create_gpu_instance("libmomoten.so") != 0)
+        {
+            ncnn::destroy_gpu_instance();
+            return JNI_FALSE;
+        }
+
+        ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+        if (!vkdev || !vkdev->is_valid()
+            || (strcmp(vkdev->info.driver_name(), "momoten") != 0 && strncmp(vkdev->info.device_name(), "momoten: ", 9) != 0))
+        {
+            // simplevk may fall back to another driver.
+            ncnn::destroy_gpu_instance();
+            return JNI_FALSE;
+        }
+    }
+    else if (driver == 1)
+    {
+        if (ncnn::create_gpu_instance("libvulkan_freedreno.so") != 0)
+        {
+            ncnn::destroy_gpu_instance();
+            return JNI_FALSE;
+        }
+
+        ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+        if (!vkdev || !vkdev->is_valid() || strcmp(vkdev->info.driver_name(), "turnip") != 0)
+        {
+            // simplevk may fall back to another driver.
+            ncnn::destroy_gpu_instance();
+            return JNI_FALSE;
+        }
+    }
+    else
+    {
+        ncnn::create_gpu_instance();
+    }
+
+    AAssetManager* mgr = AAssetManager_fromJava(env, assetManager);
+
+    // use vulkan compute
+    if (ncnn::get_gpu_count() != 0)
+    {
+        squeezenet_gpu = new ncnn::Net;
+        squeezenet_gpu->opt.use_vulkan_compute = true;
+
+        {
+            int ret = squeezenet_gpu->load_param_bin(mgr, "squeezenet_v1.1.param.bin");
+            if (ret != 0)
+            {
+                __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "load_param_bin failed");
+                delete squeezenet_gpu;
+                squeezenet_gpu = 0;
+                return JNI_FALSE;
+            }
+        }
+        {
+            int ret = squeezenet_gpu->load_model(mgr, "squeezenet_v1.1.bin");
+            if (ret != 0)
+            {
+                __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "load_model failed");
+                delete squeezenet_gpu;
+                squeezenet_gpu = 0;
+                return JNI_FALSE;
+            }
+        }
+    }
+
+    if (!squeezenet_gpu)
+        return JNI_FALSE;
+
+    old_driver = driver;
+    return JNI_TRUE;
+}
+
 // public native String Detect(Bitmap bitmap, boolean use_gpu);
 JNIEXPORT jstring JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Detect(JNIEnv* env, jobject thiz, jobject bitmap, jboolean use_gpu)
 {
-    if (use_gpu == JNI_TRUE && ncnn::get_gpu_count() == 0)
+    ncnn::MutexLockGuard g(lock);
+
+    if (use_gpu == JNI_TRUE && !squeezenet_gpu)
     {
         return env->NewStringUTF("no vulkan capable gpu");
     }
@@ -172,7 +250,7 @@ JNIEXPORT jstring JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Detect(JNIEnv
         const float mean_vals[3] = {104.f, 117.f, 123.f};
         in.substract_mean_normalize(mean_vals, 0);
 
-        ncnn::Extractor ex = use_gpu ? squeezenet_gpu.create_extractor() : squeezenet.create_extractor();
+        ncnn::Extractor ex = use_gpu ? squeezenet_gpu->create_extractor() : squeezenet.create_extractor();
 
         ex.input(squeezenet_v1_1_param_id::BLOB_data, in);
 

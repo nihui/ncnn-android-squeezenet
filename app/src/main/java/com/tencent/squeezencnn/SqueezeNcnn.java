@@ -21,6 +21,8 @@ public class SqueezeNcnn
 {
     public native boolean Init(AssetManager mgr);
 
+    public native boolean InitGPU(AssetManager mgr, int driver);
+
     public native String Detect(Bitmap bitmap, boolean use_gpu);
 
     static {
