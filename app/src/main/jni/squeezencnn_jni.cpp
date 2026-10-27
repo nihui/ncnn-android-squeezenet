@@ -164,19 +164,7 @@ JNIEXPORT jboolean JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_InitGPU(JNIE
     }
     else if (driver == 1)
     {
-        if (ncnn::create_gpu_instance("libvulkan_freedreno.so") != 0)
-        {
-            ncnn::destroy_gpu_instance();
-            return JNI_FALSE;
-        }
-
-        ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
-        if (!vkdev || !vkdev->is_valid() || strcmp(vkdev->info.driver_name(), "turnip") != 0)
-        {
-            // simplevk may fall back to another driver.
-            ncnn::destroy_gpu_instance();
-            return JNI_FALSE;
-        }
+        ncnn::create_gpu_instance("libvulkan_freedreno.so");
     }
     else
     {
